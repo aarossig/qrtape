@@ -8,4 +8,7 @@
 
 add_executable(qrtape
   main.cc
+  util/crc16.cc
+  util/file.cc
+  util/string.cc
 )
