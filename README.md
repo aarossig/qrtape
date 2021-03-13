@@ -57,8 +57,8 @@ opusenc --discard-comments --discard-pictures \
 qrtape --encode -s 2331 \
     --input equalizer-12k-stereo-vbr.opus -p equalizer_
 for i in {0..156}; do \
-    qrencode -8 -m 0 -s 16 -r -L M \
-    equalizer_$i.bin -o equalizer_$i.png; \
+    qrencode -8 -m 0 -s 16 -l M \
+    -r equalizer_$i.bin -o equalizer_$i.png; \
 done
 for i in {0..156}; do \
     echo printing $i; \
