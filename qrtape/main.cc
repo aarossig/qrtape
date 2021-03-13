@@ -86,7 +86,7 @@ void Encode(const std::string& input_filename, size_t max_chunk_size,
 }
 
 // Decodes file chunks received on stdin and writes output to stdout.
-void Decode(size_t chunk_size) {
+void Decode(size_t chunk_size, bool allow_skip) {
   if (freopen(nullptr, "rb", stdin) == nullptr) {
     LOGFATAL("Failed to reopen stdin in binary mode: %s (%d)",
         strerror(errno), errno);
@@ -121,21 +121,28 @@ void Decode(size_t chunk_size) {
     }
 
     uint16_t read_chunk_index = DecodeInt(chunk, 0);
-    if (read_chunk_index != chunk_index) {
+    if (allow_skip && read_chunk_index < chunk_index
+        || !allow_skip && read_chunk_index != chunk_index) {
       LOGE("Chunk %zu expected, found %zu", chunk_index, read_chunk_index);
-      continue;
-    }
-
-    uint16_t read_chunk_size = DecodeInt(chunk, 2);
-    for (size_t i = 0; i < read_chunk_size; i++) {
-      if (putchar(chunk[i + 4]) < 0) {
-        return;
+    } else {
+      uint16_t read_chunk_index = DecodeInt(chunk, 0);
+      uint16_t read_chunk_size = DecodeInt(chunk, 2);
+      for (size_t i = 0; i < read_chunk_size; i++) {
+        if (putchar(chunk[i + 4]) < 0) {
+          return;
+        }
       }
+
+      LOGI("Processed chunk %zu with size %zu successfully",
+          read_chunk_index, read_chunk_size);
+      chunk_index = read_chunk_index;
     }
 
-    LOGI("Processed chunk %zu with size %zu successfully",
-        chunk_index, read_chunk_size);
-    chunk_index++;
+    // Discard a byte.
+    int c = getchar();
+    if (c < 0) {
+      return;
+    }
   }
 }
 
@@ -152,6 +159,8 @@ int main(int argc, char** argv) {
       false, "", "file", cmd);
   TCLAP::ValueArg<std::string> output_prefix_arg("p", "prefix",
       "The output file prefix.", false, "", "file prefix", cmd);
+  TCLAP::SwitchArg allow_skip_arg("", "allow-skip",
+      "Allow skipping a QR code in the input.", cmd);
   cmd.xorAdd(encode_arg, decode_arg);
   cmd.parse(argc, argv);
 
@@ -159,7 +168,7 @@ int main(int argc, char** argv) {
     Encode(input_arg.getValue(), chunk_size_arg.getValue(),
         output_prefix_arg.getValue());
   } else if (decode_arg.getValue()) {
-    Decode(chunk_size_arg.getValue());
+    Decode(chunk_size_arg.getValue(), allow_skip_arg.getValue());
   }
 
   return 0;
